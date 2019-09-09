@@ -3,7 +3,7 @@
 require "open3"
 require_relative "../lib/buildkite-cache"
 
-SSH_URL = ENV.fetch("BUILDKITE_CACHE_URL")
+BUCKET_URL = ENV.fetch("BUILDKITE_CACHE_BUCKET", "s3://buildkite-cache-mnd/")
 configuration = ENV["BUILDKITE_PLUGIN_DEVOPS_BUILDKITE_CACHE_CONFIGURATION"]
 cache_keys_and_paths = BuildkiteCache.generate_configuration(configuration)
 
@@ -13,19 +13,20 @@ cache_keys_and_paths.each do |key, path|
     next
   end
 
-  if system("ssh #{SSH_URL} 'find #{key}.tar'")
+  tar_path = "#{BUCKET_URL}#{key}.tar"
+
+  if system("aws s3 ls #{tar_path}")
     puts "Cache already exists. Skipping cache store."
   else
-    puts "Storing cache from '#{path}' in #{key}.tar"
+    puts "Storing cache from '#{path}' in #{tar_path}"
 
-    directory = File.dirname(key)
-
-    system "ssh #{SSH_URL} 'mkdir -p ~/#{directory}'"
-    system "tar c #{path} | ssh #{SSH_URL} 'cat > ~/#{key}.tar'"
+    system "tar c #{path} | aws s3 cp - #{tar_path}"
   end
 
   if ENV.fetch("BUILDKITE_BRANCH") == "master"
     fallback_key = key.split("-")[0..-2].join("-") + "-master"
-    system "ssh #{SSH_URL} 'ln -s ~/#{key}.tar ~/#{fallback_key}.tar'"
+    fallback_path = "#{BUCKET_URL}#{fallback_key}.tar"
+    puts "Copying #{tar_path} to #{fallback_path}"
+    system "aws s3 cp #{tar_path} #{fallback_path}"
   end
 end
