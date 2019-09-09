@@ -1,9 +1,29 @@
 require "json"
-require "open3"
+require "digest"
 
 module BuildkiteCache
   ORGANIZATION = ENV.fetch("BUILDKITE_ORGANIZATION_SLUG").freeze
   PIPELINE = ENV.fetch("BUILDKITE_PIPELINE_SLUG").freeze
+
+  def self.generate_configuration(json_string = nil)
+    keys_and_paths = json_string ? parse_configuration(json_string) : {}
+
+    if File.exist?("Gemfile.lock")
+      ruby_version = language_version(".ruby-version")
+      checksum = checksum("Gemfile.lock")
+      key = key("bundle-#{ruby_version}-#{checksum}")
+      keys_and_paths[key] = "vendor/bundle"
+    end
+
+    if File.exist?("yarn.lock")
+      node_version = language_version(".nvmrc", ".node-version")
+      checksum = checksum("yarn.lock")
+      key = key("node_modules-#{node_version}-#{checksum}")
+      keys_and_paths[key] = "node_modules"
+    end
+
+    keys_and_paths
+  end
 
   def self.parse_configuration(json_string)
     raw_keys_and_paths = JSON.parse(json_string)
@@ -11,11 +31,11 @@ module BuildkiteCache
     keys_and_paths = {}
 
     raw_keys_and_paths.each do |raw_key, path|
-      key = raw_key.gsub %r({{(.*)}}) do
+      suffix = raw_key.gsub %r({{(.*)}}) do
         filename = $1.strip
         checksum(filename)
       end
-      key = "#{ORGANIZATION}/#{PIPELINE}/#{key}"
+      key = key(suffix)
       keys_and_paths[key] = path
     end
 
@@ -23,14 +43,17 @@ module BuildkiteCache
   end
 
   def self.checksum(filename)
-    stdout, stderr, status = Open3.capture3("sha1sum #{filename}")
+    content = File.read(filename)
+    Digest::SHA1.hexdigest(content)
+  end
 
-    unless status.success?
-      # likely stderr: "sha1sum: checksum: No such file or directory"
-      abort "ERROR: Failed to get checksum of '#{filename}'.\n#{stderr}"
+  def self.key(suffix)
+    "#{ORGANIZATION}/#{PIPELINE}/#{suffix}"
+  end
+
+  def self.language_version(*filenames)
+    filenames.each do |filename|
+      return File.read(filename).gsub(/\s/, "") if File.exist?(filename)
     end
-
-    # stdout: "<checksum> <filename>\n"
-    stdout.split(" ").first
   end
 end
