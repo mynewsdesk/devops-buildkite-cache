@@ -54,10 +54,10 @@ configuration = ENV["BUILDKITE_PLUGIN_DEVOPS_BUILDKITE_CACHE_CONFIGURATION"]
 cache_keys_and_paths = BuildkiteCache.generate_configuration(configuration)
 fallbacks = {}
 
-cache_keys_and_paths.each do |key, path|
-  restore_cache(key, path, fallbacks: fallbacks)
-end
+cache_keys_and_paths.map do |key, path|
+  Thread.new { restore_cache(key, path, fallbacks: fallbacks) }
+end.map(&:join)
 
-fallbacks.each do |key, path|
-  restore_cache(key, path)
-end
+fallbacks.map do |key, path|
+  Thread.new { restore_cache(key, path) }
+end.map(&:join)
