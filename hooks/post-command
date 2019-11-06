@@ -1,4 +1,4 @@
 #!/bin/bash
 
 relative_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ruby ${relative_dir}/post-command.rb
+RBENV_VERSION=`rbenv global` ruby ${relative_dir}/post-command.rb
