@@ -16,7 +16,7 @@ module BuildkiteCache
     end
 
     if File.exist?("yarn.lock")
-      node_version = language_version(".nvmrc", ".node-version")
+      node_version = language_version(".node-version", ".nvmrc")
       checksum = checksum("yarn.lock")
       key = key("node_modules-#{node_version}-#{checksum}")
       keys_and_paths[key] = "node_modules"
