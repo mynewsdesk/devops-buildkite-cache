@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+exit if ENV["BUILDKITE_CACHE_DISABLE"] == "true"
+
 require "open3"
 require_relative "../lib/buildkite-cache"
 
