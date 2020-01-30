@@ -5,6 +5,12 @@ exit if ENV["BUILDKITE_CACHE_DISABLE"] == "true"
 require "open3"
 require_relative "../lib/buildkite-cache"
 
+last_exit_status = ENV.fetch("BUILDKITE_COMMAND_EXIT_STATUS")
+if last_exit_status != "0"
+  puts "Skipping cache plugin since the build appears to have failed (BUILDKITE_COMMAND_EXIT_STATUS was #{last_exit_status})"
+  exit
+end
+
 BUCKET_URL = ENV.fetch("BUILDKITE_CACHE_BUCKET", "s3://buildkite-cache-mnd/")
 configuration = ENV["BUILDKITE_PLUGIN_DEVOPS_BUILDKITE_CACHE_CONFIGURATION"]
 cache_keys_and_paths = BuildkiteCache.generate_configuration(configuration)
