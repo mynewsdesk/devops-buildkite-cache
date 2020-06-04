@@ -31,11 +31,13 @@ def restore_cache(key, path, fallbacks: nil)
       # tar: This does not look like a tar archive
       # tar: Exiting with failure status due to previous errors
       puts "No cache available. Skipping."
-    elsif stderr["Unexpected EOF in archive"]
+    elsif stderr["Unexpected EOF in archive"] || stderr["Skipping to next header"]
       # Expected output in case the cache file is corrupted (eg. due to canceling a job mid-cache):
-      # ERROR restoring cache: tar: Unexpected EOF in archive
       # tar: Unexpected EOF in archive
       # tar: Error is not recoverable: exiting now
+      # Or
+      # tar: Skipping to next header
+      # tar: Exiting with failure status due to previous errors
       puts "WARNING: Cache file appears corrupted. Deleting!"
       system "aws s3 rm #{BUCKET_URL}#{key}.tar"
     else
